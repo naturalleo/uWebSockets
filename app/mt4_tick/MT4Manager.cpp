@@ -1,5 +1,4 @@
-﻿
-#include "stdafx.h"
+﻿#include "Platform.h"
 #include "MT4Manager.h"
 #include "ManagerAPI/MT4ManagerAPI.h"
 #include "CharCoding.h"

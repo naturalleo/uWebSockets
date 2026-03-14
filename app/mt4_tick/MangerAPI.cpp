@@ -1,7 +1,6 @@
-﻿#include "stdafx.h"
+﻿#include "Platform.h"
 #include "MangerAPI.h"
 #include "MT4Manager.h"
-#include "MT5Manager.h"
 
 namespace manager {
 
@@ -31,10 +30,6 @@ bool ManagerService::initializeMT4(const std::string& srv, uint64_t admin, const
 }
 bool ManagerService::initializeMT5(const std::string& srv, uint64_t admin, const std::string& pass)
 {
-	m_mt5 = new MT5Manager();
-	m_mt5->managerInitLogin(srv, admin, pass);
-
-	m_initMT5 = true;
 	return true;
 }
 bool ManagerService::handleMT4(UnifiedTradeData& data)
