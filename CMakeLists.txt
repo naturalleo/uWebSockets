@@ -63,7 +63,20 @@ target_link_directories(app_third_party INTERFACE
 #     "$<$<CONFIG:Release>:fmt>"
 # )
 
+# ── MT4 ManagerAPI ───────────────────────────────────────────────
+# MT4ManagerAPI 只提供头文件 + DLL（无 .lib 导入库），通过运行时
+# LoadLibrary 加载，CMake 只需提供头文件路径，并在构建后复制 DLL。
+target_include_directories(app_third_party INTERFACE
+    "${CMAKE_CURRENT_SOURCE_DIR}/app/include/ManagerAPI"
+)
+
+# 构建后将 mtmanapi64.dll 复制到各 exe 的输出目录
+# 路径变量供各子项目的 add_custom_command 使用
+set(MT4_DLL_DEBUG   "${CMAKE_CURRENT_SOURCE_DIR}/app/lib/Debug/mtmanapi64.dll")
+set(MT4_DLL_RELEASE "${CMAKE_CURRENT_SOURCE_DIR}/app/lib/Release/mtmanapi64.dll")
+
 # app 子项目（每个目录对应一个独立的 exe）
+# DLL 复制命令在各子项目自身的 CMakeLists.txt 中定义（TARGET 必须在同一目录）
 add_subdirectory(app/tick_server)
 add_subdirectory(app/tick_client)
 add_subdirectory(app/tick_gateway)
