@@ -12,6 +12,8 @@ add_executable(mt4_tick
     MTManager.h
     MTTradeData.h
     Platform.h
+    Models.h
+    Common.h
 )
 target_include_directories(mt4_tick PRIVATE ${UWS_SRC_ROOT} ${USOCKETS_ROOT}/src)
 target_compile_features(mt4_tick PRIVATE cxx_std_20)

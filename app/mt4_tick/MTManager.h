@@ -29,6 +29,8 @@ public:
     virtual bool handle_balance(UnifiedTradeData* data, uint64_t login) = 0;
 
 protected:
+    volatile bool     _connected = false;
+    volatile bool     _connecting = false;
     // 共享的成员变量，通过模板参数指定类型
     std::unique_ptr<FactoryType> _factory;
     APIType* _api_pump = nullptr;

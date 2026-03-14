@@ -2,6 +2,7 @@
 #include "MT4Manager.h"
 #include "ManagerAPI/MT4ManagerAPI.h"
 #include "CharCoding.h"
+#include "Models.h"
 
 namespace manager {
 
@@ -46,6 +47,7 @@ int MT4Manager::managerInitLogin(const std::string& srv, uint64_t admin, const s
 
 int MT4Manager::login()
 {
+	_connected = false;
 	int ret = _api_pump->Connect(m_host.c_str());
 	if (RET_OK != ret) {
 		std::cout << "MT Connect <" << m_host <<"> err<"<< ret <<">:" << _api_pump->ErrorDescription(ret) << std::endl;
@@ -56,10 +58,67 @@ int MT4Manager::login()
 		std::cout << "_api_pump->Login(m_manager, m_password.c_str()) RET_OK != ret" << std::endl;
 		return ret;
 	}
+	_connected = true;
 	ConManager rights = {};
 	_api_pump->ManagerRights(&rights);
 	return 0;
 }
+
+int MT4Manager::startCallBackThread()
+{
+	// 每次切换 '推送前' 刷新一次 symbol，不然掉线重连期间新品种 没得推送
+	_api_pump->SymbolsRefresh();
+	return _api_pump->PumpingSwitchEx([](int code, int type, void * data, void *param) {
+		if (param == NULL) return;
+		MT4Manager * pquote = (MT4Manager*)param;
+		switch (code)
+		{
+		case PUMP_START_PUMPING:
+			pquote->OnConnected();
+			break;
+		case PUMP_STOP_PUMPING:
+			pquote->OnDisconnected();
+			break;
+		case PUMP_UPDATE_BIDASK:
+		{
+			SymbolInfo si[16];
+			int total = 0;
+			while ((total = pquote->_api_pump->SymbolInfoUpdated(si, 16)) > 0) {
+				for (int i = 0; i < total; i++)
+				{
+					pquote->OnTick(si[i]);
+				}
+			}
+		}
+		break;
+		case PUMP_UPDATE_SYMBOLS:
+			break;
+		case PUMP_UPDATE_GROUPS:
+			break;
+		case PUMP_UPDATE_USERS:
+			break;
+		case PUMP_UPDATE_TRADES:
+			break;
+		default:
+			break;
+		}
+
+	}, CLIENT_FLAGS_HIDENEWS | CLIENT_FLAGS_HIDEMAIL | CLIENT_FLAGS_SENDFULLNEWS, this);
+};
+
+void MT4Manager::OnTick(const SymbolInfo & tick)
+{
+	LastQuote lq = {};
+	lq.digits = tick.digits;
+	long ms = _getCurrentMillisecs() % 1000;
+	long long tick_msc = ((long long)tick.lasttime) * 1000L + ms;
+	lq.digits = tick.digits;
+	lq.UpdateLastQuote(tick_msc, tick.ask, tick.bid, 1);
+
+
+
+}
+
 bool MT4Manager::handle(UnifiedTradeData* data, uint64_t login)
 {
 	return true;
