@@ -1,4 +1,4 @@
-#include <iostream>
+﻿#include <iostream>
 
 #include "Platform.h"
 #include "MT4ManagerAPI.h"

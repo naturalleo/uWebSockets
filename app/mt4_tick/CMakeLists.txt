@@ -15,6 +15,13 @@ add_executable(mt4_tick
 )
 target_include_directories(mt4_tick PRIVATE ${UWS_SRC_ROOT} ${USOCKETS_ROOT}/src)
 target_compile_features(mt4_tick PRIVATE cxx_std_20)
+target_compile_definitions(mt4_tick PRIVATE
+    _CRT_SECURE_NO_WARNINGS
+    _SILENCE_ALL_CXX17_DEPRECATION_WARNINGS
+)
+target_compile_options(mt4_tick PRIVATE
+    $<$<CXX_COMPILER_ID:MSVC>:/wd4244>
+)
 target_link_libraries(mt4_tick PRIVATE uSockets ZLIB::ZLIB ws2_32 crypt32 app_third_party)
 set_target_properties(mt4_tick PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
