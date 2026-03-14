@@ -44,5 +44,8 @@ target_link_libraries(my_app PRIVATE
     crypt32
 )
 
-# mt4Tick 子项目
-add_subdirectory(app/mt4Tick)
+# app 子项目（每个目录对应一个独立的 exe）
+add_subdirectory(app/tick_server)
+add_subdirectory(app/tick_client)
+add_subdirectory(app/tick_gateway)
+add_subdirectory(app/tick_recorder)

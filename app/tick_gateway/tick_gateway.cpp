@@ -38,12 +38,11 @@ struct DownstreamData {
 };
 using DownstreamWS = uWS::WebSocket<false, true, DownstreamData>;
 
-std::mutex                  ds_mutex;
-std::set<DownstreamWS*>     ds_connections;
-static std::atomic<int>     ds_id_counter{0};
+std::mutex                    ds_mutex;
+std::set<DownstreamWS*>       ds_connections;
+static std::atomic<int>       ds_id_counter{0};
 static std::atomic<long long> g_forwarded{0};
 
-// 广播一条消息给所有已订阅的下游客户端
 static void broadcast(std::string_view msg) {
     std::lock_guard<std::mutex> lock(ds_mutex);
     for (DownstreamWS* ws : ds_connections) {
@@ -72,15 +71,15 @@ int main(int argc, char* argv[]) {
     // ── 下游服务端：接受来自 MT4/客户端的连接 ────────────────────
     app.ws<DownstreamData>("/*", {
         .open = [](DownstreamWS* ws) {
-            auto* data    = ws->getUserData();
-            int id        = ds_id_counter++;
+            auto* data       = ws->getUserData();
+            int id           = ds_id_counter++;
             data->client_id  = "ds_" + std::to_string(id);
             data->subscribed = true;
             { std::lock_guard<std::mutex> lock(ds_mutex); ds_connections.insert(ws); }
             std::cout << data->client_id << " downstream connected\n";
         },
         .message = [](DownstreamWS* ws, std::string_view msg, uWS::OpCode opCode) {
-            auto* data  = ws->getUserData();
+            auto* data = ws->getUserData();
             std::string s(msg);
             if (s == "sub") {
                 data->subscribed = true;
@@ -128,4 +127,3 @@ int main(int argc, char* argv[]) {
     app.run();
     return 0;
 }
-

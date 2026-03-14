@@ -36,7 +36,6 @@ static void print_usage(const char* prog) {
 
 static std::atomic<long long> g_recorded{0};
 
-// 获取当前时间戳（纳秒）
 static long long now_ns() {
     using namespace std::chrono;
     return duration_cast<nanoseconds>(
@@ -57,18 +56,15 @@ int main(int argc, char* argv[]) {
               << "  source=" << g_cfg.host << ":" << g_cfg.port
               << "  output=" << g_cfg.outfile << "\n";
 
-    // 打开 CSV 文件（追加模式，支持重启续写）
     std::ofstream ofs(g_cfg.outfile, std::ios::app);
     if (!ofs.is_open()) {
         std::cerr << "ERROR: cannot open output file: " << g_cfg.outfile << "\n";
         return 1;
     }
-    // 写 CSV 表头（首次创建时）
     if (ofs.tellp() == 0) {
         ofs << "timestamp_ns,raw_json\n";
     }
 
-    // 统计线程
     std::thread([]() {
         long long last = 0;
         while (true) {
@@ -96,9 +92,8 @@ int main(int argc, char* argv[]) {
         },
         .message = [](uWS::WebSocket<false, true, PerSocket>* ws,
                       std::string_view msg, uWS::OpCode) {
-            auto* data = ws->getUserData();
+            auto* data   = ws->getUserData();
             long long ts = now_ns();
-            // 写入: timestamp_ns,raw_json
             (*data->ofs_ptr) << ts << "," << msg << "\n";
             ++g_recorded;
             if (g_cfg.verbose)

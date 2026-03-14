@@ -59,16 +59,14 @@ int main(int argc, char* argv[]) {
 
     uWS::App app;
 
-    // uWS::App::connect 是客户端模式
     struct PerSocket {};
     app.ws<PerSocket>("/*", {
         .open = [](uWS::WebSocket<false, true, PerSocket>* ws) {
             std::cout << "[client] connected\n";
-            // 发送初始点差设置
             std::string cmd = "spread:" + std::to_string(g_cfg.spread);
             ws->send(cmd, uWS::OpCode::TEXT);
         },
-        .message = [](uWS::WebSocket<false, true, PerSocket>* ws,
+        .message = [](uWS::WebSocket<false, true, PerSocket>*,
                       std::string_view msg, uWS::OpCode) {
             ++g_received;
             if (g_cfg.verbose)
@@ -79,14 +77,12 @@ int main(int argc, char* argv[]) {
         }
     });
 
-    // 建立出站连接
     std::string url = "ws://" + g_cfg.host + ":" + std::to_string(g_cfg.port);
-    app.connect(url, [](auto* ws, auto* /*ctx*/) {
-        if (!ws) {
-            std::cerr << "[client] failed to connect\n";
-        }
+    app.connect(url, [](auto* ws, auto*) {
+        if (!ws) std::cerr << "[client] failed to connect\n";
     });
 
     app.run();
     return 0;
 }
+
