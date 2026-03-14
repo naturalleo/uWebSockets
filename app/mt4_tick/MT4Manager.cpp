@@ -3,6 +3,10 @@
 #include "ManagerAPI/MT4ManagerAPI.h"
 #include "CharCoding.h"
 #include "Models.h"
+#include <functional>
+
+// 引用 main_quote.cpp 中的全局回调
+extern std::function<void(std::string, LastQuote&&)> _quote_cb;
 
 namespace manager {
 
@@ -108,15 +112,25 @@ int MT4Manager::startCallBackThread()
 
 void MT4Manager::OnTick(const SymbolInfo & tick)
 {
-	LastQuote lq = {};
-	lq.digits = tick.digits;
+	std::string sym(tick.symbol);
+	if (sym.empty()) return;
+	if (!_subed_quotes.ContainsKey(sym)) return;
+
+	// 在写锁内原地更新 LastQuote
 	long ms = _getCurrentMillisecs() % 1000;
 	long long tick_msc = ((long long)tick.lasttime) * 1000L + ms;
-	lq.digits = tick.digits;
-	lq.UpdateLastQuote(tick_msc, tick.ask, tick.bid, 1);
+	_subed_quotes.Foreach([&](const std::string& k, LastQuote& lq) {
+		if (k == sym) {
+			lq.digits = tick.digits;
+			lq.UpdateLastQuote(tick_msc, tick.ask, tick.bid, 1);
+		}
+	});
 
-
-
+	// 取出更新后的快照，触发广播回调
+	if (!_quote_cb) return;
+	LastQuote snapshot;
+	if (!_subed_quotes.FindAndRef(sym, snapshot)) return;
+	_quote_cb(sym, std::move(snapshot));
 }
 
 bool MT4Manager::handle(UnifiedTradeData* data, uint64_t login)

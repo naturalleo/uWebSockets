@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include <string>
+#include <cstdio>
 
 //+=======================================+
 //|  // K line
@@ -21,7 +22,7 @@ public:
 	double ask = 0;
 	double bid = 0;
 	int    digits = 8;
-	long long ctm = 0;   // ¸ÄÎª ms
+	long long ctm = 0;   // 改为 ms
 	double day_open = 0;
 	double day_high = 0;
 	double day_low = 0;
@@ -30,18 +31,27 @@ public:
 	MtChartBar lastm1;
 	MtChartBar lastm1_p;
 
+	// 返回格式化后的实际数值字符串: " ask bid ctm day_open day_high day_low per_close"
 	std::string toString() {
-		std::string digit_str = std::to_string(digits);
-		std::string fma = " {:." + digit_str + "f} {:." + digit_str + "f} {} {:."
-			+ digit_str + "f} {:." + digit_str + "f} {:." + digit_str + "f} {:." + digit_str + "f}";
-		return std::move(fma);
+		char buf[256];
+		int d = digits > 0 ? digits : 8;
+		snprintf(buf, sizeof(buf),
+			" %.*f %.*f %lld %.*f %.*f %.*f %.*f",
+			d, ask,
+			d, bid,
+			(long long)ctm,
+			d, day_open,
+			d, day_high,
+			d, day_low,
+			d, per_close);
+		return std::string(buf);
 	}
 
 	bool IsVaild() { return ask > 0 && bid > 0; };
 
 	bool UpdateLastQuote(long long t_msc, double a, double b, long long rv) {
 		if (t_msc < ctm) return false;
-		// ¸üÐÂ lastm1
+		// 更新 lastm1
 		long long t = t_msc / 1000;
 		long long cc_tt = t / 60 * 60;
 		if (lastm1.t <= 0 || cc_tt != lastm1.t) { 
@@ -55,23 +65,23 @@ public:
 			lastm1.rv = rv;
 		}
 		else {
-			// Ö»ÔÚÓÐÖµÊ±¸üÐÂ
+			// 只在有值时更新
 			if (lastm1.h > 0) {
-				lastm1.h = b > lastm1.h ? b : lastm1.h; // Math.Max(bid, lastm1.h);
+				lastm1.h = b > lastm1.h ? b : lastm1.h;
 			}
 			if (lastm1.l < 0 || lastm1.l > b) {
-				lastm1.l = b; // Math.Min(bid, lastm1.l);
+				lastm1.l = b;
 			}
 			lastm1.c = b;
 			lastm1.v += 1;
 			lastm1.rv += rv;
 		}
 
-		// ¸üÐÂ  day data,  µÃµ½×òÊÕ£¬²ÅÄÜ¸üÐÂ high low 
+		// 更新 day data，得到昨收，才能更新 high low
 		if (ctm > 0 && per_close > 0) {
 			long long current_day = t / 86400;
 			long long previous_day = ctm / 1000 / 86400;
-			if (current_day != previous_day) {  // ¿çÌì
+			if (current_day != previous_day) {  // 跨天
 				day_high = b;
 				day_low = b;
 				day_open = b;
@@ -82,11 +92,10 @@ public:
 				day_low = (day_low > 0 && b < day_low) ? b : day_low;
 			}
 		}
-		//  Ìí¼Ó  ±£´æ tick µÄ ÅÐ¶Ï, ÏàÍ¬¼Û¸ñ, 350ms±£´æÒ»¸ö£¬²»Í¬¼Û¸ñ 30ms ±£´æÒ»¸ö-----------
+		// 保存 tick 的判断, 相同价格 350ms 保存一个，不同价格 30ms 保存一个
 		bool save_it = false;
 		long long t_gap = t_msc - ctm;
 		if (t_gap > 450 || (t_gap > 190 && (bid != b || ask != a))) { save_it = true; }
-		//  -------------------
 		ctm = t_msc;
 		bid = b;
 		ask = a;

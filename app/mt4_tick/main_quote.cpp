@@ -67,7 +67,7 @@ int main(int argc, char* argv[]) {
 		return -1;
 	}
 	UwsApp app;
-	int http_port = 8080;
+	int http_port = 9001;
 
     // ── _quote_cb: 报价广播（外部线程调用，defer 到 uWS 线程）─────
     _quote_cb = [](std::string sym, LastQuote&& quotes) {
@@ -83,7 +83,20 @@ int main(int argc, char* argv[]) {
         if (targets.empty()) return;
         // defer 到 uWS 事件循环线程再操作 ws
         g_uwsLoop->defer([sym, q = std::move(quotes), targets]() mutable {
+            // 在 uWS 线程内二次确认 ws 仍然存活（防止悬空指针）
+            std::vector<UwsSocket*> live_ws;
+            {
+                std::shared_lock<std::shared_mutex> lock(symbol_subscribers_mutex);
+                auto it = symbol_subscribers.find(sym);
+                if (it != symbol_subscribers.end()) {
+                    for (auto& [sws, _] : it->second)
+                        live_ws.push_back(sws);
+                }
+            }
             for (auto& [ws, diff] : targets) {
+                // 只对仍然在订阅表中的 ws 发送
+                bool alive = (std::find(live_ws.begin(), live_ws.end(), ws) != live_ws.end());
+                if (!alive) continue;
                 LastQuote myq = q;
                 myq.bid -= diff.bid_diff;
                 myq.ask += diff.ask_diff;
@@ -94,7 +107,7 @@ int main(int argc, char* argv[]) {
         };
 
     // ── WebSocket /ws ─────────────────────────────────────────────
-    app.ws<WsUserData>("/ws", {
+    app.ws<WsUserData>("/*", {
 
         .open = [](UwsSocket* ws) {
             auto* ud = ws->getUserData();
@@ -175,6 +188,12 @@ int main(int argc, char* argv[]) {
 
 	// ── 获取 Loop 指针（在 app.run() 前，当前线程是 uWS 线程）────
 	g_uwsLoop = uWS::Loop::get();
+
+	// ── 启动 MT4 pump 回调线程（_quote_cb 已赋值后再启动）────────
+	if (quote->startCallBackThread() != RET_OK) {
+		std::cerr << "Failed to start MT4 pump callback thread" << std::endl;
+		return -1;
+	}
 
 	// ── 绑定端口 ─────────────────────────────────────────────────
 	app.listen(http_port, [http_port](auto* listenSocket) {
