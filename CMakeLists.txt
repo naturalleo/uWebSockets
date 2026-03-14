@@ -44,8 +44,28 @@ target_link_libraries(my_app PRIVATE
     crypt32
 )
 
+# ── 第三方本地依赖（app/include + app/lib/Debug|Release）────────
+# 将 app/include 下的头文件和 app/lib/<Config> 下的 .lib
+# 封装为一个 INTERFACE 库，所有 app exe 链接它即可自动继承
+add_library(app_third_party INTERFACE)
+target_include_directories(app_third_party INTERFACE
+    "${CMAKE_CURRENT_SOURCE_DIR}/app/include"
+)
+target_link_directories(app_third_party INTERFACE
+    "$<$<CONFIG:Debug>:${CMAKE_CURRENT_SOURCE_DIR}/app/lib/Debug>"
+    "$<$<CONFIG:Release>:${CMAKE_CURRENT_SOURCE_DIR}/app/lib/Release>"
+    "$<$<CONFIG:RelWithDebInfo>:${CMAKE_CURRENT_SOURCE_DIR}/app/lib/Release>"
+    "$<$<CONFIG:MinSizeRel>:${CMAKE_CURRENT_SOURCE_DIR}/app/lib/Release>"
+)
+# 新增第三方 .lib 时，在此处追加：
+# target_link_libraries(app_third_party INTERFACE
+#     "$<$<CONFIG:Debug>:fmtd>"
+#     "$<$<CONFIG:Release>:fmt>"
+# )
+
 # app 子项目（每个目录对应一个独立的 exe）
 add_subdirectory(app/tick_server)
 add_subdirectory(app/tick_client)
 add_subdirectory(app/tick_gateway)
 add_subdirectory(app/tick_recorder)
+add_subdirectory(app/mt4_tick)
